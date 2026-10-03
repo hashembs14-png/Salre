@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>تسجيل الطلبات</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; padding: 12px;
+    font-family: -apple-system, "Segoe UI", Tahoma, sans-serif;
+    background: #0f172a; color: #e2e8f0;
+    min-height: 100vh;
+  }
+  h1 { font-size: 20px; text-align: center; margin: 8px 0 16px; }
+  .card {
+    background: #1e293b; border-radius: 14px;
+    padding: 14px; margin-bottom: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.3);
+  }
+  .card h2 { font-size: 15px; margin: 0 0 10px; color: #94a3b8; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat {
+    background: #0f172a; border-radius: 10px; padding: 12px; text-align: center;
+  }
+  .stat .num { font-size: 24px; font-weight: bold; }
+  .stat .lbl { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+  .stat.green .num { color: #4ade80; }
+  .stat.red .num { color: #f87171; }
+  .stat.gold .num { color: #fbbf24; }
+  .stat.blue .num { color: #60a5fa; }
+
+  button {
+    width: 100%; padding: 14px; border: none; border-radius: 10px;
+    font-size: 16px; font-weight: bold; cursor: pointer;
+    margin-bottom: 8px; color: #fff;
+  }
+  .btn-primary { background: #3b82f6; }
+  .btn-success { background: #22c55e; }
+  .btn-danger  { background: #ef4444; }
+  .btn-gold    { background: #eab308; color: #1e293b; }
+  .btn-gray    { background: #475569; }
+  button:active { transform: scale(.98); }
+  button:disabled { opacity: .5; }
+
+  input[type=text], input[type=number] {
+    width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #334155;
+    background: #0f172a; color: #fff; font-size: 16px; margin-bottom: 8px;
+  }
+  input::placeholder { color: #64748b; }
+
+  .active-order {
+    font-size: 14px; padding: 12px; border-radius: 10px;
+    background: #0f172a; margin-bottom: 10px; line-height: 1.6;
+    text-align: center;
+  }
+  .active-order b { color: #60a5fa; font-size: 18px; }
+
+  .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .actions button { font-size: 13px; padding: 14px 4px; margin: 0; }
+
+  ul { list-style: none; padding: 0; margin: 0; }
+  li {
+    background: #0f172a; border-radius: 10px; padding: 10px;
+    margin-bottom: 6px; display: flex; justify-content: space-between;
+    align-items: center; font-size: 14px;
+  }
+  li .info { display: flex; flex-direction: column; gap: 2px; }
+  li .order-no { font-weight: bold; font-size: 15px; }
+  li .date { font-size: 11px; color: #94a3b8; }
+  li .amount { font-weight: bold; color: #fbbf24; }
+
+  .empty { text-align: center; color: #64748b; font-size: 13px; padding: 12px; }
+
+  #toast {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%) translateY(-120%);
+    background: #1e293b; border: 2px solid #3b82f6; color: #fff;
+    padding: 14px 20px; border-radius: 12px; font-size: 15px; font-weight: bold;
+    z-index: 999; transition: transform .35s ease; text-align: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5); max-width: 90%;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.green { border-color: #22c55e; }
+  #toast.red { border-color: #ef4444; }
+
+  .saved-note { font-size: 11px; color: #64748b; text-align: center; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<h1>📦 تسجيل الطلبات</h1>
+
+<!-- الإحصائيات -->
+<div class="card">
+  <h2>📊 الإحصائيات</h2>
+  <div class="stats">
+    <div class="stat blue"><div class="num" id="stTotal">0</div><div class="lbl">إجمالي الطلبات</div></div>
+    <div class="stat green"><div class="num" id="stSuccess">0</div><div class="lbl">الناجحة</div></div>
+    <div class="stat red"><div class="num" id="stCancel">0</div><div class="lbl">الملغاة</div></div>
+    <div class="stat gold"><div class="num" id="stMoney">0</div><div class="lbl">المستحق (جنيه)</div></div>
+  </div>
+</div>
+
+<!-- الطلب الحالي -->
+<div class="card">
+  <h2>📦 الطلب الحالي</h2>
+
+  <div id="noOrder">
+    <input type="text" id="orderInput" placeholder="أدخل رقم الطلب" inputmode="numeric">
+    <button class="btn-primary" id="startOrderBtn">➕ بدء طلب جديد</button>
+  </div>
+
+  <div id="activeOrder" style="display:none;">
+    <div class="active-order">
+      الطلب النشط الآن<br>
+      <b id="activeOrderNo"></b><br>
+      <small style="color:#94a3b8;">سجّل النتيجة عند وصولك للفرع</small>
+    </div>
+    <div class="actions">
+      <button class="btn-success" id="deliveredBtn">✅ تم التوصيل</button>
+      <button class="btn-danger" id="cancelBtn">❌ اتكنسل</button>
+      <button class="btn-gold" id="paidBtn">💰 الحساب</button>
+    </div>
+  </div>
+</div>
+
+<!-- القوائم -->
+<div class="card">
+  <h2>✅ التوصيلات الناجحة (<span id="countSuccess">0</span>)</h2>
+  <ul id="successList"><li class="empty">لا يوجد</li></ul>
+</div>
+
+<div class="card">
+  <h2>❌ الطلبات الملغاة (<span id="countCancel">0</span>)</h2>
+  <ul id="cancelList"><li class="empty">لا يوجد</li></ul>
+</div>
+
+<!-- إدارة البيانات -->
+<div class="card">
+  <h2>💾 البيانات</h2>
+  <div class="saved-note">كل البيانات محفوظة تلقائيًا في المتصفح ولا تُمسح إلا يدويًا.</div>
+  <button class="btn-danger" id="clearAllBtn" style="margin-top:10px;">🗑️ مسح كل البيانات</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============ التخزين الدائم ============ */
+const LS_KEY = 'delivery_app_v2';
+const FEE = 50; // قيمة الطلب بالجنيه
+
+let state = {
+  activeOrder: null,       // {number, startedAt}
+  delivered: [],           // {number, time}
+  canceled: []             // {number, time}
+};
+
+/* ============ تحميل آمن ============ */
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    state.activeOrder = parsed.activeOrder || null;
+    state.delivered   = Array.isArray(parsed.delivered) ? parsed.delivered : [];
+    state.canceled    = Array.isArray(parsed.canceled)  ? parsed.canceled  : [];
+  } catch (e) {
+    console.warn('بيانات تالفة، سيتم البدء من جديد', e);
+    try { localStorage.removeItem(LS_KEY); } catch(_) {}
+  }
+}
+
+/* ============ حفظ ============ */
+function save() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn('فشل الحفظ', e);
+    showToast('⚠️ تعذر الحفظ — تأكد من مساحة المتصفح');
+  }
+}
+
+/* ============ أدوات ============ */
+const $ = id => document.getElementById(id);
+
+function showToast(msg, type='') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(t._tm);
+  t._tm = setTimeout(() => { t.className = ''; }, 4000);
+}
+
+function fmtDate(ts) {
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} - ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/* ============ رسم الواجهة ============ */
+function render() {
+  const total = state.delivered.length + state.canceled.length;
+
+  $('stTotal').textContent   = total;
+  $('stSuccess').textContent = state.delivered.length;
+  $('stCancel').textContent  = state.canceled.length;
+  $('stMoney').textContent   = (total * FEE).toLocaleString('en-US');
+
+  $('countSuccess').textContent = state.delivered.length;
+  $('countCancel').textContent  = state.canceled.length;
+
+  // قائمة الناجحة
+  const sl = $('successList');
+  if (state.delivered.length === 0) {
+    sl.innerHTML = '<li class="empty">لا يوجد</li>';
+  } else {
+    sl.innerHTML = state.delivered.slice().reverse().map(o => `
+      <li>
+        <div class="info">
+          <span class="order-no">#${o.number}</span>
+          <span class="date">${fmtDate(o.time)}</span>
+        </div>
+        <span class="amount">+${FEE} ج</span>
+      </li>`).join('');
+  }
+
+  // قائمة الملغاة
+  const cl = $('cancelList');
+  if (state.canceled.length === 0) {
+    cl.innerHTML = '<li class="empty">لا يوجد</li>';
+  } else {
+    cl.innerHTML = state.canceled.slice().reverse().map(o => `
+      <li>
+        <div class="info">
+          <span class="order-no">#${o.number}</span>
+          <span class="date">${fmtDate(o.time)}</span>
+        </div>
+        <span class="amount">+${FEE} ج</span>
+      </li>`).join('');
+  }
+
+  // الطلب النشط
+  if (state.activeOrder) {
+    $('noOrder').style.display = 'none';
+    $('activeOrder').style.display = 'block';
+    $('activeOrderNo').textContent = '#' + state.activeOrder.number;
+  } else {
+    $('noOrder').style.display = 'block';
+    $('activeOrder').style.display = 'none';
+  }
+}
+
+/* ============ بدء طلب ============ */
+$('startOrderBtn').onclick = () => {
+  const num = $('orderInput').value.trim();
+  if (!num) return showToast('⚠️ أدخل رقم الطلب');
+  if (state.activeOrder) return showToast('⚠️ يوجد طلب نشط بالفعل');
+
+  state.activeOrder = { number: num, startedAt: Date.now() };
+  save(); render();
+  $('orderInput').value = '';
+  showToast('📦 تم بدء الطلب #' + num);
+};
+
+// إتاحة الضغط على Enter لبدء الطلب
+$('orderInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') $('startOrderBtn').click();
+});
+
+/* ============ إنهاء الطلب ============ */
+function finishOrder(type) {
+  if (!state.activeOrder) return;
+  const order = {
+    number: state.activeOrder.number,
+    time: Date.now()
+  };
+  if (type === 'delivered') {
+    state.delivered.push(order);
+    showToast('✅ تم تسجيل التوصيل #' + order.number, 'green');
+  } else {
+    state.canceled.push(order);
+    showToast('❌ تم تسجيل الإلغاء #' + order.number, 'red');
+  }
+  state.activeOrder = null;
+  save(); render();
+}
+
+$('deliveredBtn').onclick = () => finishOrder('delivered');
+$('cancelBtn').onclick    = () => finishOrder('cancel');
+$('paidBtn').onclick = () => {
+  const total = (state.delivered.length + state.canceled.length) * FEE;
+  const count = state.delivered.length + state.canceled.length;
+  showToast(`💰 الحساب: ${total} جنيه (${count} طلب)`);
+};
+
+/* ============ مسح كل البيانات ============ */
+$('clearAllBtn').onclick = () => {
+  if (!confirm('⚠️ سيتم مسح كل الطلبات نهائيًا. متأكد؟')) return;
+  if (!confirm('تأكيد أخير: لا يمكن التراجع!')) return;
+
+  try { localStorage.removeItem(LS_KEY); } catch(_) {}
+  state = { activeOrder: null, delivered: [], canceled: [] };
+  render();
+  showToast('🗑️ تم مسح كل البيانات');
+};
+
+/* ============ التشغيل ============ */
+load();
+render();
+</script>
+</body>
+  </html>
